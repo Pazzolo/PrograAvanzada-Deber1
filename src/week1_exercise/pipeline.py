@@ -67,8 +67,27 @@ def build_measurements(df: pd.DataFrame) -> ServerMeasurements:
 
 def compute_load_score(batch: ServerMeasurements) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Retorna zscores, load_score y medias por característica."""
-    # TODO 2: normalización por columnas + broadcasting con WEIGHTS.
-    raise NotImplementedError
+    values = batch.values
+
+    # Estadísticos por columna: axis=0 colapsa las filas y deja un valor por característica.
+    # Se usa la desviación poblacional (ddof=0, valor por defecto de NumPy).
+    means = values.mean(axis=0)
+    stds = values.std(axis=0)
+
+    # Si una desviación estándar es cero, se reemplaza por 1 para evitar la división por
+    # cero; como en esa columna todos los valores son iguales, el numerador también es
+    # cero y el resultado queda en 0 en lugar de NaN o infinito.
+    stds_seguras = np.where(stds == 0, 1.0, stds)
+
+    # Normalización Z-score vectorizada: el broadcasting alinea la matriz (n, 3)
+    # con los vectores (3,), sin recorrer las observaciones con un for.
+    zscores = (values - means) / stds_seguras
+
+    # Indicador de carga: suma ponderada de cada fila con WEIGHTS = (0.50, 0.30, 0.20).
+    # El producto matricial (n, 3) @ (3,) devuelve un vector de forma (n,).
+    load_score = zscores @ WEIGHTS
+
+    return zscores, load_score, means
 
 
 def enrich_dataframe(df: pd.DataFrame, load_score: np.ndarray) -> pd.DataFrame:
