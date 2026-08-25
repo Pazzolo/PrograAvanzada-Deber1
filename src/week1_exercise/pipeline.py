@@ -92,8 +92,28 @@ def compute_load_score(batch: ServerMeasurements) -> tuple[np.ndarray, np.ndarra
 
 def enrich_dataframe(df: pd.DataFrame, load_score: np.ndarray) -> pd.DataFrame:
     """Añade load_score y requires_review sin modificar el DataFrame original."""
-    # TODO 3
-    raise NotImplementedError
+    # El vector de puntajes debe tener una entrada por observación.
+    if len(load_score) != len(df):
+        raise ValueError(
+            f"load_score tiene {len(load_score)} valores pero el DataFrame "
+            f"tiene {len(df)} filas."
+        )
+
+    # Copia independiente: todas las columnas nuevas se agregan sobre esta copia,
+    # de modo que el DataFrame original que recibe la función nunca se modifica.
+    analysis = df.copy()
+
+    analysis["load_score"] = load_score
+
+    # Regla de revisión: load_score > 1.5 O temperature_c > 80.
+    # Se usa "|" (o elemento a elemento) y no "or", porque "or" no funciona sobre
+    # Series; los paréntesis son obligatorios porque "|" tiene mayor precedencia que ">".
+    requiere_revision = (analysis["load_score"] > 1.5) | (analysis["temperature_c"] > 80)
+
+    # astype(bool) garantiza que la columna quede con dtype bool y no object.
+    analysis["requires_review"] = requiere_revision.astype(bool)
+
+    return analysis
 
 
 def build_summary(df: pd.DataFrame) -> pd.DataFrame:
