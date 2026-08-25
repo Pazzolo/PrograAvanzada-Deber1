@@ -118,8 +118,36 @@ def enrich_dataframe(df: pd.DataFrame, load_score: np.ndarray) -> pd.DataFrame:
 
 def build_summary(df: pd.DataFrame) -> pd.DataFrame:
     """Construye el resumen por servidor solicitado en el enunciado."""
-    # TODO 4
-    raise NotImplementedError
+    # Agrupación por servidor: cada grupo se colapsa en una sola fila.
+    # Se usa agregación con nombre (nombre_nuevo=(columna, operación)) para controlar
+    # exactamente cómo se llama cada columna del resumen.
+    summary = (
+        df.groupby("server")
+        .agg(
+            # "size" cuenta las filas del grupo, sin importar la columna elegida.
+            observations=("timestamp", "size"),
+            mean_power_w=("power_w", "mean"),
+            max_temperature_c=("temperature_c", "max"),
+            mean_load=("load_score", "mean"),
+            # Sumar una columna booleana equivale a contar cuántos valores son True.
+            review_count=("requires_review", "sum"),
+        )
+        # "server" quedó como índice al agrupar; se devuelve como columna normal.
+        .reset_index()
+    )
+
+    # Se fija el orden exacto de columnas exigido por el enunciado.
+    return summary.loc[
+        :,
+        [
+            "server",
+            "observations",
+            "mean_power_w",
+            "max_temperature_c",
+            "mean_load",
+            "review_count",
+        ],
+    ]
 
 
 def save_and_validate_parquet(df: pd.DataFrame, output_path: str | Path) -> pd.DataFrame:
